@@ -1,6 +1,485 @@
+# # Based on https://github.com/nutonomy/nuscenes-devkit
+# # ---------------------------------------------
+# #  Modified by Zhiqi Li
+# # ---------------------------------------------
+#
+# import mmcv
+# from nuscenes.nuscenes import NuScenes
+# from PIL import Image
+# from nuscenes.utils.geometry_utils import view_points, box_in_image, BoxVisibility, transform_matrix
+# from typing import Tuple, List, Iterable
+# import matplotlib.pyplot as plt
+# import numpy as np
+# from PIL import Image
+# from matplotlib import rcParams
+# from matplotlib.axes import Axes
+# from pyquaternion import Quaternion
+# from PIL import Image
+# from matplotlib import rcParams
+# from matplotlib.axes import Axes
+# from pyquaternion import Quaternion
+# from tqdm import tqdm
+# from nuscenes.utils.data_classes import LidarPointCloud, RadarPointCloud, Box
+# from nuscenes.utils.geometry_utils import view_points, box_in_image, BoxVisibility, transform_matrix
+# from nuscenes.eval.common.data_classes import EvalBoxes, EvalBox
+# from nuscenes.eval.detection.data_classes import DetectionBox
+# from nuscenes.eval.detection.utils import category_to_detection_name
+# from nuscenes.eval.detection.render import visualize_sample
+#
+#
+#
+#
+# cams = ['CAM_FRONT',
+#  'CAM_FRONT_RIGHT',
+#  'CAM_BACK_RIGHT',
+#  'CAM_BACK',
+#  'CAM_BACK_LEFT',
+#  'CAM_FRONT_LEFT']
+#
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from nuscenes.utils.data_classes import LidarPointCloud, RadarPointCloud, Box
+# from PIL import Image
+# from matplotlib import rcParams
+#
+#
+# def render_annotation(
+#         anntoken: str,
+#         margin: float = 10,
+#         view: np.ndarray = np.eye(4),
+#         box_vis_level: BoxVisibility = BoxVisibility.ANY,
+#         out_path: str = 'render.png',
+#         extra_info: bool = False) -> None:
+#     """
+#     Render selected annotation.
+#     :param anntoken: Sample_annotation token.
+#     :param margin: How many meters in each direction to include in LIDAR view.
+#     :param view: LIDAR view point.
+#     :param box_vis_level: If sample_data is an image, this sets required visibility for boxes.
+#     :param out_path: Optional path to save the rendered figure to disk.
+#     :param extra_info: Whether to render extra information below camera view.
+#     """
+#     ann_record = nusc.get('sample_annotation', anntoken)
+#     sample_record = nusc.get('sample', ann_record['sample_token'])
+#     assert 'LIDAR_TOP' in sample_record['data'].keys(), 'Error: No LIDAR_TOP in data, unable to render.'
+#
+#     # Figure out which camera the object is fully visible in (this may return nothing).
+#     boxes, cam = [], []
+#     cams = [key for key in sample_record['data'].keys() if 'CAM' in key]
+#     all_bboxes = []
+#     select_cams = []
+#     for cam in cams:
+#         _, boxes, _ = nusc.get_sample_data(sample_record['data'][cam], box_vis_level=box_vis_level,
+#                                            selected_anntokens=[anntoken])
+#         if len(boxes) > 0:
+#             all_bboxes.append(boxes)
+#             select_cams.append(cam)
+#             # We found an image that matches. Let's abort.
+#     # assert len(boxes) > 0, 'Error: Could not find image where annotation is visible. ' \
+#     #                      'Try using e.g. BoxVisibility.ANY.'
+#     # assert len(boxes) < 2, 'Error: Found multiple annotations. Something is wrong!'
+#
+#     num_cam = len(all_bboxes)
+#
+#     fig, axes = plt.subplots(1, num_cam + 1, figsize=(18, 9))
+#     select_cams = [sample_record['data'][cam] for cam in select_cams]
+#     print('bbox in cams:', select_cams)
+#     # Plot LIDAR view.
+#     lidar = sample_record['data']['LIDAR_TOP']
+#     data_path, boxes, camera_intrinsic = nusc.get_sample_data(lidar, selected_anntokens=[anntoken])
+#     LidarPointCloud.from_file(data_path).render_height(axes[0], view=view)
+#     for box in boxes:
+#         c = np.array(get_color(box.name)) / 255.0
+#         box.render(axes[0], view=view, colors=(c, c, c))
+#         corners = view_points(boxes[0].corners(), view, False)[:2, :]
+#         axes[0].set_xlim([np.min(corners[0, :]) - margin, np.max(corners[0, :]) + margin])
+#         axes[0].set_ylim([np.min(corners[1, :]) - margin, np.max(corners[1, :]) + margin])
+#         axes[0].axis('off')
+#         axes[0].set_aspect('equal')
+#
+#     # Plot CAMERA view.
+#     for i in range(1, num_cam + 1):
+#         cam = select_cams[i - 1]
+#         data_path, boxes, camera_intrinsic = nusc.get_sample_data(cam, selected_anntokens=[anntoken])
+#         im = Image.open(data_path)
+#         axes[i].imshow(im)
+#         axes[i].set_title(nusc.get('sample_data', cam)['channel'])
+#         axes[i].axis('off')
+#         axes[i].set_aspect('equal')
+#         for box in boxes:
+#             c = np.array(get_color(box.name)) / 255.0
+#             box.render(axes[i], view=camera_intrinsic, normalize=True, colors=(c, c, c))
+#
+#         # Print extra information about the annotation below the camera view.
+#         axes[i].set_xlim(0, im.size[0])
+#         axes[i].set_ylim(im.size[1], 0)
+#
+#     if extra_info:
+#         rcParams['font.family'] = 'monospace'
+#
+#         w, l, h = ann_record['size']
+#         category = ann_record['category_name']
+#         lidar_points = ann_record['num_lidar_pts']
+#         radar_points = ann_record['num_radar_pts']
+#
+#         sample_data_record = nusc.get('sample_data', sample_record['data']['LIDAR_TOP'])
+#         pose_record = nusc.get('ego_pose', sample_data_record['ego_pose_token'])
+#         dist = np.linalg.norm(np.array(pose_record['translation']) - np.array(ann_record['translation']))
+#
+#         information = ' \n'.join(['category: {}'.format(category),
+#                                   '',
+#                                   '# lidar points: {0:>4}'.format(lidar_points),
+#                                   '# radar points: {0:>4}'.format(radar_points),
+#                                   '',
+#                                   'distance: {:>7.3f}m'.format(dist),
+#                                   '',
+#                                   'width:  {:>7.3f}m'.format(w),
+#                                   'length: {:>7.3f}m'.format(l),
+#                                   'height: {:>7.3f}m'.format(h)])
+#
+#         plt.annotate(information, (0, 0), (0, -20), xycoords='axes fraction', textcoords='offset points', va='top')
+#
+#     if out_path is not None:
+#         plt.savefig(out_path)
+#
+#
+#
+# def get_sample_data(sample_data_token: str,
+#                     box_vis_level: BoxVisibility = BoxVisibility.ANY,
+#                     selected_anntokens=None,
+#                     use_flat_vehicle_coordinates: bool = False):
+#     """
+#     Returns the data path as well as all annotations related to that sample_data.
+#     Note that the boxes are transformed into the current sensor's coordinate frame.
+#     :param sample_data_token: Sample_data token.
+#     :param box_vis_level: If sample_data is an image, this sets required visibility for boxes.
+#     :param selected_anntokens: If provided only return the selected annotation.
+#     :param use_flat_vehicle_coordinates: Instead of the current sensor's coordinate frame, use ego frame which is
+#                                          aligned to z-plane in the world.
+#     :return: (data_path, boxes, camera_intrinsic <np.array: 3, 3>)
+#     """
+#
+#     # Retrieve sensor & pose records
+#     sd_record = nusc.get('sample_data', sample_data_token)
+#     cs_record = nusc.get('calibrated_sensor', sd_record['calibrated_sensor_token'])
+#     sensor_record = nusc.get('sensor', cs_record['sensor_token'])
+#     pose_record = nusc.get('ego_pose', sd_record['ego_pose_token'])
+#
+#     data_path = nusc.get_sample_data_path(sample_data_token)
+#
+#     if sensor_record['modality'] == 'camera':
+#         cam_intrinsic = np.array(cs_record['camera_intrinsic'])
+#         imsize = (sd_record['width'], sd_record['height'])
+#     else:
+#         cam_intrinsic = None
+#         imsize = None
+#
+#     # Retrieve all sample annotations and map to sensor coordinate system.
+#     if selected_anntokens is not None:
+#         boxes = list(map(nusc.get_box, selected_anntokens))
+#     else:
+#         boxes = nusc.get_boxes(sample_data_token)
+#
+#     # Make list of Box objects including coord system transforms.
+#     box_list = []
+#     for box in boxes:
+#         if use_flat_vehicle_coordinates:
+#             # Move box to ego vehicle coord system parallel to world z plane.
+#             yaw = Quaternion(pose_record['rotation']).yaw_pitch_roll[0]
+#             box.translate(-np.array(pose_record['translation']))
+#             box.rotate(Quaternion(scalar=np.cos(yaw / 2), vector=[0, 0, np.sin(yaw / 2)]).inverse)
+#         else:
+#             # Move box to ego vehicle coord system.
+#             box.translate(-np.array(pose_record['translation']))
+#             box.rotate(Quaternion(pose_record['rotation']).inverse)
+#
+#             #  Move box to sensor coord system.
+#             box.translate(-np.array(cs_record['translation']))
+#             box.rotate(Quaternion(cs_record['rotation']).inverse)
+#
+#         if sensor_record['modality'] == 'camera' and not \
+#                 box_in_image(box, cam_intrinsic, imsize, vis_level=box_vis_level):
+#             continue
+#
+#         box_list.append(box)
+#
+#     return data_path, box_list, cam_intrinsic
+#
+#
+#
+# def get_predicted_data(sample_data_token: str,
+#                        box_vis_level: BoxVisibility = BoxVisibility.ANY,
+#                        selected_anntokens=None,
+#                        use_flat_vehicle_coordinates: bool = False,
+#                        pred_anns=None
+#                        ):
+#     """
+#     Returns the data path as well as all annotations related to that sample_data.
+#     Note that the boxes are transformed into the current sensor's coordinate frame.
+#     :param sample_data_token: Sample_data token.
+#     :param box_vis_level: If sample_data is an image, this sets required visibility for boxes.
+#     :param selected_anntokens: If provided only return the selected annotation.
+#     :param use_flat_vehicle_coordinates: Instead of the current sensor's coordinate frame, use ego frame which is
+#                                          aligned to z-plane in the world.
+#     :return: (data_path, boxes, camera_intrinsic <np.array: 3, 3>)
+#     """
+#
+#     # Retrieve sensor & pose records
+#     sd_record = nusc.get('sample_data', sample_data_token)
+#     cs_record = nusc.get('calibrated_sensor', sd_record['calibrated_sensor_token'])
+#     sensor_record = nusc.get('sensor', cs_record['sensor_token'])
+#     pose_record = nusc.get('ego_pose', sd_record['ego_pose_token'])
+#
+#     data_path = nusc.get_sample_data_path(sample_data_token)
+#
+#     if sensor_record['modality'] == 'camera':
+#         cam_intrinsic = np.array(cs_record['camera_intrinsic'])
+#         imsize = (sd_record['width'], sd_record['height'])
+#     else:
+#         cam_intrinsic = None
+#         imsize = None
+#
+#     # Retrieve all sample annotations and map to sensor coordinate system.
+#     # if selected_anntokens is not None:
+#     #    boxes = list(map(nusc.get_box, selected_anntokens))
+#     # else:
+#     #    boxes = nusc.get_boxes(sample_data_token)
+#     boxes = pred_anns
+#     # Make list of Box objects including coord system transforms.
+#     box_list = []
+#     for box in boxes:
+#         if use_flat_vehicle_coordinates:
+#             # Move box to ego vehicle coord system parallel to world z plane.
+#             yaw = Quaternion(pose_record['rotation']).yaw_pitch_roll[0]
+#             box.translate(-np.array(pose_record['translation']))
+#             box.rotate(Quaternion(scalar=np.cos(yaw / 2), vector=[0, 0, np.sin(yaw / 2)]).inverse)
+#         else:
+#             # Move box to ego vehicle coord system.
+#             box.translate(-np.array(pose_record['translation']))
+#             box.rotate(Quaternion(pose_record['rotation']).inverse)
+#
+#             #  Move box to sensor coord system.
+#             box.translate(-np.array(cs_record['translation']))
+#             box.rotate(Quaternion(cs_record['rotation']).inverse)
+#
+#         if sensor_record['modality'] == 'camera' and not \
+#                 box_in_image(box, cam_intrinsic, imsize, vis_level=box_vis_level):
+#             continue
+#         box_list.append(box)
+#
+#     return data_path, box_list, cam_intrinsic
+#
+#
+#
+#
+# def lidiar_render(sample_token, data,out_path=None):
+#     bbox_gt_list = []
+#     bbox_pred_list = []
+#     anns = nusc.get('sample', sample_token)['anns']
+#     for ann in anns:
+#         content = nusc.get('sample_annotation', ann)
+#         try:
+#             bbox_gt_list.append(DetectionBox(
+#                 sample_token=content['sample_token'],
+#                 translation=tuple(content['translation']),
+#                 size=tuple(content['size']),
+#                 rotation=tuple(content['rotation']),
+#                 velocity=nusc.box_velocity(content['token'])[:2],
+#                 ego_translation=(0.0, 0.0, 0.0) if 'ego_translation' not in content
+#                 else tuple(content['ego_translation']),
+#                 num_pts=-1 if 'num_pts' not in content else int(content['num_pts']),
+#                 detection_name=category_to_detection_name(content['category_name']),
+#                 detection_score=-1.0 if 'detection_score' not in content else float(content['detection_score']),
+#                 attribute_name=''))
+#         except:
+#             pass
+#
+#     bbox_anns = data['results'][sample_token]
+#     for content in bbox_anns:
+#         bbox_pred_list.append(DetectionBox(
+#             sample_token=content['sample_token'],
+#             translation=tuple(content['translation']),
+#             size=tuple(content['size']),
+#             rotation=tuple(content['rotation']),
+#             velocity=tuple(content['velocity']),
+#             ego_translation=(0.0, 0.0, 0.0) if 'ego_translation' not in content
+#             else tuple(content['ego_translation']),
+#             num_pts=-1 if 'num_pts' not in content else int(content['num_pts']),
+#             detection_name=content['detection_name'],
+#             detection_score=-1.0 if 'detection_score' not in content else float(content['detection_score']),
+#             attribute_name=content['attribute_name']))
+#     gt_annotations = EvalBoxes()
+#     pred_annotations = EvalBoxes()
+#     gt_annotations.add_boxes(sample_token, bbox_gt_list)
+#     pred_annotations.add_boxes(sample_token, bbox_pred_list)
+#     print('green is ground truth')
+#     print('blue is the predited result')
+#     visualize_sample(nusc, sample_token, gt_annotations, pred_annotations, savepath=out_path+'_bev')
+#
+#
+# def get_color(category_name: str):
+#     """
+#     Provides the default colors based on the category names.
+#     This method works for the general nuScenes categories, as well as the nuScenes detection categories.
+#     """
+#     a = ['noise', 'animal', 'human.pedestrian.adult', 'human.pedestrian.child', 'human.pedestrian.construction_worker',
+#      'human.pedestrian.personal_mobility', 'human.pedestrian.police_officer', 'human.pedestrian.stroller',
+#      'human.pedestrian.wheelchair', 'movable_object.barrier', 'movable_object.debris',
+#      'movable_object.pushable_pullable', 'movable_object.trafficcone', 'static_object.bicycle_rack', 'vehicle.bicycle',
+#      'vehicle.bus.bendy', 'vehicle.bus.rigid', 'vehicle.car', 'vehicle.construction', 'vehicle.emergency.ambulance',
+#      'vehicle.emergency.police', 'vehicle.motorcycle', 'vehicle.trailer', 'vehicle.truck', 'flat.driveable_surface',
+#      'flat.other', 'flat.sidewalk', 'flat.terrain', 'static.manmade', 'static.other', 'static.vegetation',
+#      'vehicle.ego']
+#     class_names = [
+#         'car', 'truck', 'construction_vehicle', 'bus', 'trailer', 'barrier',
+#         'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
+#     ]
+#     #print(category_name)
+#     if category_name == 'bicycle':
+#         return nusc.colormap['vehicle.bicycle']
+#     elif category_name == 'construction_vehicle':
+#         return nusc.colormap['vehicle.construction']
+#     elif category_name == 'traffic_cone':
+#         return nusc.colormap['movable_object.trafficcone']
+#
+#     for key in nusc.colormap.keys():
+#         if category_name in key:
+#             return nusc.colormap[key]
+#     return [0, 0, 0]
+#
+#
+# def render_sample_data(
+#         sample_toekn: str,
+#         with_anns: bool = True,
+#         box_vis_level: BoxVisibility = BoxVisibility.ANY,
+#         axes_limit: float = 40,
+#         ax=None,
+#         nsweeps: int = 1,
+#         out_path: str = None,
+#         underlay_map: bool = True,
+#         use_flat_vehicle_coordinates: bool = True,
+#         show_lidarseg: bool = False,
+#         show_lidarseg_legend: bool = False,
+#         filter_lidarseg_labels=None,
+#         lidarseg_preds_bin_path: str = None,
+#         verbose: bool = True,
+#         show_panoptic: bool = False,
+#         pred_data=None,
+#       ) -> None:
+#     """
+#     Render sample data onto axis.
+#     :param sample_data_token: Sample_data token.
+#     :param with_anns: Whether to draw box annotations.
+#     :param box_vis_level: If sample_data is an image, this sets required visibility for boxes.
+#     :param axes_limit: Axes limit for lidar and radar (measured in meters).
+#     :param ax: Axes onto which to render.
+#     :param nsweeps: Number of sweeps for lidar and radar.
+#     :param out_path: Optional path to save the rendered figure to disk.
+#     :param underlay_map: When set to true, lidar data is plotted onto the map. This can be slow.
+#     :param use_flat_vehicle_coordinates: Instead of the current sensor's coordinate frame, use ego frame which is
+#         aligned to z-plane in the world. Note: Previously this method did not use flat vehicle coordinates, which
+#         can lead to small errors when the vertical axis of the global frame and lidar are not aligned. The new
+#         setting is more correct and rotates the plot by ~90 degrees.
+#     :param show_lidarseg: When set to True, the lidar data is colored with the segmentation labels. When set
+#         to False, the colors of the lidar data represent the distance from the center of the ego vehicle.
+#     :param show_lidarseg_legend: Whether to display the legend for the lidarseg labels in the frame.
+#     :param filter_lidarseg_labels: Only show lidar points which belong to the given list of classes. If None
+#         or the list is empty, all classes will be displayed.
+#     :param lidarseg_preds_bin_path: A path to the .bin file which contains the user's lidar segmentation
+#                                     predictions for the sample.
+#     :param verbose: Whether to display the image after it is rendered.
+#     :param show_panoptic: When set to True, the lidar data is colored with the panoptic labels. When set
+#         to False, the colors of the lidar data represent the distance from the center of the ego vehicle.
+#         If show_lidarseg is True, show_panoptic will be set to False.
+#     """
+#     lidiar_render(sample_toekn, pred_data, out_path=out_path)
+#     sample = nusc.get('sample', sample_toekn)
+#     # sample = data['results'][sample_token_list[0]][0]
+#     cams = [
+#         'CAM_FRONT_LEFT',
+#         'CAM_FRONT',
+#         'CAM_FRONT_RIGHT',
+#         'CAM_BACK_LEFT',
+#         'CAM_BACK',
+#         'CAM_BACK_RIGHT',
+#     ]
+#     if ax is None:
+#         _, ax = plt.subplots(4, 3, figsize=(24, 18))
+#     j = 0
+#     for ind, cam in enumerate(cams):
+#         sample_data_token = sample['data'][cam]
+#
+#         sd_record = nusc.get('sample_data', sample_data_token)
+#         sensor_modality = sd_record['sensor_modality']
+#
+#         if sensor_modality in ['lidar', 'radar']:
+#             assert False
+#         elif sensor_modality == 'camera':
+#             # Load boxes and image.
+#             boxes = [Box(record['translation'], record['size'], Quaternion(record['rotation']),
+#                          name=record['detection_name'], token='predicted') for record in
+#                      pred_data['results'][sample_toekn] if record['detection_score'] > 0.2]
+#
+#             data_path, boxes_pred, camera_intrinsic = get_predicted_data(sample_data_token,
+#                                                                          box_vis_level=box_vis_level, pred_anns=boxes)
+#             _, boxes_gt, _ = nusc.get_sample_data(sample_data_token, box_vis_level=box_vis_level)
+#             if ind == 3:
+#                 j += 1
+#             ind = ind % 3
+#             data = Image.open(data_path)
+#             # mmcv.imwrite(np.array(data)[:,:,::-1], f'{cam}.png')
+#             # Init axes.
+#
+#             # Show image.
+#             ax[j, ind].imshow(data)
+#             ax[j + 2, ind].imshow(data)
+#
+#             # Show boxes.
+#             if with_anns:
+#                 for box in boxes_pred:
+#                     c = np.array(get_color(box.name)) / 255.0
+#                     box.render(ax[j, ind], view=camera_intrinsic, normalize=True, colors=(c, c, c))
+#                 for box in boxes_gt:
+#                     c = np.array(get_color(box.name)) / 255.0
+#                     box.render(ax[j + 2, ind], view=camera_intrinsic, normalize=True, colors=(c, c, c))
+#
+#             # Limit visible range.
+#             ax[j, ind].set_xlim(0, data.size[0])
+#             ax[j, ind].set_ylim(data.size[1], 0)
+#             ax[j + 2, ind].set_xlim(0, data.size[0])
+#             ax[j + 2, ind].set_ylim(data.size[1], 0)
+#
+#         else:
+#             raise ValueError("Error: Unknown sensor modality!")
+#
+#         ax[j, ind].axis('off')
+#         ax[j, ind].set_title('PRED: {} {labels_type}'.format(
+#             sd_record['channel'], labels_type='(predictions)' if lidarseg_preds_bin_path else ''))
+#         ax[j, ind].set_aspect('equal')
+#
+#         ax[j + 2, ind].axis('off')
+#         ax[j + 2, ind].set_title('GT:{} {labels_type}'.format(
+#             sd_record['channel'], labels_type='(predictions)' if lidarseg_preds_bin_path else ''))
+#         ax[j + 2, ind].set_aspect('equal')
+#
+#     if out_path is not None:
+#         plt.savefig(out_path+'_camera', bbox_inches='tight', pad_inches=0, dpi=200)
+#     if verbose:
+#         plt.show()
+#     plt.close()
+#
+# if __name__ == '__main__':
+#     nusc = NuScenes(version='v1.0-mini', dataroot='./data/nuscenes', verbose=True)
+#     # render_annotation('7603b030b42a4b1caa8c443ccc1a7d52')
+#     bevformer_results = mmcv.load('/Users/mac/PycharmProjects/bevformertest/BEVFormer/test/bevformer_tiny/Sat_Oct_18_10_44_00_2025/pts_bbox/results_nusc.json')
+#     sample_token_list = list(bevformer_results['results'].keys())
+#     for id in range(0, 10):
+#         render_sample_data(sample_token_list[id], pred_data=bevformer_results, out_path=sample_token_list[id])
+
+
 # Based on https://github.com/nutonomy/nuscenes-devkit
 # ---------------------------------------------
-#  Modified by Zhiqi Li
+#  Modified by Zhiqi Li, further modified for official BEV + multi-view effect
 # ---------------------------------------------
 
 import mmcv
@@ -10,139 +489,57 @@ from nuscenes.utils.geometry_utils import view_points, box_in_image, BoxVisibili
 from typing import Tuple, List, Iterable
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
-from matplotlib import rcParams
-from matplotlib.axes import Axes
-from pyquaternion import Quaternion
-from PIL import Image
 from matplotlib import rcParams
 from matplotlib.axes import Axes
 from pyquaternion import Quaternion
 from tqdm import tqdm
 from nuscenes.utils.data_classes import LidarPointCloud, RadarPointCloud, Box
-from nuscenes.utils.geometry_utils import view_points, box_in_image, BoxVisibility, transform_matrix
-from nuscenes.eval.common.data_classes import EvalBoxes, EvalBox
+from nuscenes.eval.common.data_classes import EvalBoxes
 from nuscenes.eval.detection.data_classes import DetectionBox
 from nuscenes.eval.detection.utils import category_to_detection_name
 from nuscenes.eval.detection.render import visualize_sample
+import argparse  # 支持命令行参数
+import os  # 用于临时文件管理
+import cv2  # 用于生成视频
+from nuscenes.eval.detection.evaluate import NuScenesEval  # 用于评估
+from nuscenes.eval.detection.config import config_factory  # 用于评估配置
+import json  # 用于临时JSON
+import tempfile  # 用于临时文件
 
+cams = [
+        'CAM_FRONT_LEFT',
+        'CAM_FRONT',
+        'CAM_FRONT_RIGHT',
+        'CAM_BACK_LEFT',
+        'CAM_BACK',
+        'CAM_BACK_RIGHT',
+    ]
 
-
-
-cams = ['CAM_FRONT',
- 'CAM_FRONT_RIGHT',
- 'CAM_BACK_RIGHT',
- 'CAM_BACK',
- 'CAM_BACK_LEFT',
- 'CAM_FRONT_LEFT']
-
-import numpy as np
-import matplotlib.pyplot as plt
-from nuscenes.utils.data_classes import LidarPointCloud, RadarPointCloud, Box
-from PIL import Image
-from matplotlib import rcParams
-
-
-def render_annotation(
-        anntoken: str,
-        margin: float = 10,
-        view: np.ndarray = np.eye(4),
-        box_vis_level: BoxVisibility = BoxVisibility.ANY,
-        out_path: str = 'render.png',
-        extra_info: bool = False) -> None:
+def get_color(category_name: str):
     """
-    Render selected annotation.
-    :param anntoken: Sample_annotation token.
-    :param margin: How many meters in each direction to include in LIDAR view.
-    :param view: LIDAR view point.
-    :param box_vis_level: If sample_data is an image, this sets required visibility for boxes.
-    :param out_path: Optional path to save the rendered figure to disk.
-    :param extra_info: Whether to render extra information below camera view.
+    Provides the default colors based on the category names.
+    This method works for the general nuScenes categories, as well as the nuScenes detection categories.
     """
-    ann_record = nusc.get('sample_annotation', anntoken)
-    sample_record = nusc.get('sample', ann_record['sample_token'])
-    assert 'LIDAR_TOP' in sample_record['data'].keys(), 'Error: No LIDAR_TOP in data, unable to render.'
-
-    # Figure out which camera the object is fully visible in (this may return nothing).
-    boxes, cam = [], []
-    cams = [key for key in sample_record['data'].keys() if 'CAM' in key]
-    all_bboxes = []
-    select_cams = []
-    for cam in cams:
-        _, boxes, _ = nusc.get_sample_data(sample_record['data'][cam], box_vis_level=box_vis_level,
-                                           selected_anntokens=[anntoken])
-        if len(boxes) > 0:
-            all_bboxes.append(boxes)
-            select_cams.append(cam)
-            # We found an image that matches. Let's abort.
-    # assert len(boxes) > 0, 'Error: Could not find image where annotation is visible. ' \
-    #                      'Try using e.g. BoxVisibility.ANY.'
-    # assert len(boxes) < 2, 'Error: Found multiple annotations. Something is wrong!'
-
-    num_cam = len(all_bboxes)
-
-    fig, axes = plt.subplots(1, num_cam + 1, figsize=(18, 9))
-    select_cams = [sample_record['data'][cam] for cam in select_cams]
-    print('bbox in cams:', select_cams)
-    # Plot LIDAR view.
-    lidar = sample_record['data']['LIDAR_TOP']
-    data_path, boxes, camera_intrinsic = nusc.get_sample_data(lidar, selected_anntokens=[anntoken])
-    LidarPointCloud.from_file(data_path).render_height(axes[0], view=view)
-    for box in boxes:
-        c = np.array(get_color(box.name)) / 255.0
-        box.render(axes[0], view=view, colors=(c, c, c))
-        corners = view_points(boxes[0].corners(), view, False)[:2, :]
-        axes[0].set_xlim([np.min(corners[0, :]) - margin, np.max(corners[0, :]) + margin])
-        axes[0].set_ylim([np.min(corners[1, :]) - margin, np.max(corners[1, :]) + margin])
-        axes[0].axis('off')
-        axes[0].set_aspect('equal')
-
-    # Plot CAMERA view.
-    for i in range(1, num_cam + 1):
-        cam = select_cams[i - 1]
-        data_path, boxes, camera_intrinsic = nusc.get_sample_data(cam, selected_anntokens=[anntoken])
-        im = Image.open(data_path)
-        axes[i].imshow(im)
-        axes[i].set_title(nusc.get('sample_data', cam)['channel'])
-        axes[i].axis('off')
-        axes[i].set_aspect('equal')
-        for box in boxes:
-            c = np.array(get_color(box.name)) / 255.0
-            box.render(axes[i], view=camera_intrinsic, normalize=True, colors=(c, c, c))
-
-        # Print extra information about the annotation below the camera view.
-        axes[i].set_xlim(0, im.size[0])
-        axes[i].set_ylim(im.size[1], 0)
-
-    if extra_info:
-        rcParams['font.family'] = 'monospace'
-
-        w, l, h = ann_record['size']
-        category = ann_record['category_name']
-        lidar_points = ann_record['num_lidar_pts']
-        radar_points = ann_record['num_radar_pts']
-
-        sample_data_record = nusc.get('sample_data', sample_record['data']['LIDAR_TOP'])
-        pose_record = nusc.get('ego_pose', sample_data_record['ego_pose_token'])
-        dist = np.linalg.norm(np.array(pose_record['translation']) - np.array(ann_record['translation']))
-
-        information = ' \n'.join(['category: {}'.format(category),
-                                  '',
-                                  '# lidar points: {0:>4}'.format(lidar_points),
-                                  '# radar points: {0:>4}'.format(radar_points),
-                                  '',
-                                  'distance: {:>7.3f}m'.format(dist),
-                                  '',
-                                  'width:  {:>7.3f}m'.format(w),
-                                  'length: {:>7.3f}m'.format(l),
-                                  'height: {:>7.3f}m'.format(h)])
-
-        plt.annotate(information, (0, 0), (0, -20), xycoords='axes fraction', textcoords='offset points', va='top')
-
-    if out_path is not None:
-        plt.savefig(out_path)
-
-
+    class_names = [
+        'car', 'truck', 'construction_vehicle', 'bus', 'trailer', 'barrier',
+        'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
+    ]
+    if category_name in class_names:
+        # Map to nuScenes colormap for consistency with official visuals
+        colormap = {
+            'car': [255, 158, 0],  # Orange
+            'truck': [255, 61, 99],  # Red
+            'construction_vehicle': [0, 0, 142],  # Navy
+            'bus': [102, 102, 156],  # Gray
+            'trailer': [153, 153, 153],  # Light gray
+            'barrier': [255, 0, 0],  # Bright red
+            'motorcycle': [0, 0, 230],  # Blue
+            'bicycle': [119, 11, 32],  # Brown
+            'pedestrian': [220, 20, 60],  # Crimson
+            'traffic_cone': [255, 165, 0]  # Orange cone
+        }
+        return colormap.get(category_name, [0, 0, 0])
+    return [0, 0, 0]
 
 def get_sample_data(sample_data_token: str,
                     box_vis_level: BoxVisibility = BoxVisibility.ANY,
@@ -151,15 +548,7 @@ def get_sample_data(sample_data_token: str,
     """
     Returns the data path as well as all annotations related to that sample_data.
     Note that the boxes are transformed into the current sensor's coordinate frame.
-    :param sample_data_token: Sample_data token.
-    :param box_vis_level: If sample_data is an image, this sets required visibility for boxes.
-    :param selected_anntokens: If provided only return the selected annotation.
-    :param use_flat_vehicle_coordinates: Instead of the current sensor's coordinate frame, use ego frame which is
-                                         aligned to z-plane in the world.
-    :return: (data_path, boxes, camera_intrinsic <np.array: 3, 3>)
     """
-
-    # Retrieve sensor & pose records
     sd_record = nusc.get('sample_data', sample_data_token)
     cs_record = nusc.get('calibrated_sensor', sd_record['calibrated_sensor_token'])
     sensor_record = nusc.get('sensor', cs_record['sensor_token'])
@@ -174,57 +563,39 @@ def get_sample_data(sample_data_token: str,
         cam_intrinsic = None
         imsize = None
 
-    # Retrieve all sample annotations and map to sensor coordinate system.
     if selected_anntokens is not None:
         boxes = list(map(nusc.get_box, selected_anntokens))
     else:
         boxes = nusc.get_boxes(sample_data_token)
 
-    # Make list of Box objects including coord system transforms.
     box_list = []
     for box in boxes:
         if use_flat_vehicle_coordinates:
-            # Move box to ego vehicle coord system parallel to world z plane.
             yaw = Quaternion(pose_record['rotation']).yaw_pitch_roll[0]
             box.translate(-np.array(pose_record['translation']))
             box.rotate(Quaternion(scalar=np.cos(yaw / 2), vector=[0, 0, np.sin(yaw / 2)]).inverse)
         else:
-            # Move box to ego vehicle coord system.
             box.translate(-np.array(pose_record['translation']))
             box.rotate(Quaternion(pose_record['rotation']).inverse)
 
-            #  Move box to sensor coord system.
             box.translate(-np.array(cs_record['translation']))
             box.rotate(Quaternion(cs_record['rotation']).inverse)
 
-        if sensor_record['modality'] == 'camera' and not \
-                box_in_image(box, cam_intrinsic, imsize, vis_level=box_vis_level):
+        if sensor_record['modality'] == 'camera' and not box_in_image(box, cam_intrinsic, imsize, vis_level=box_vis_level):
             continue
 
         box_list.append(box)
 
     return data_path, box_list, cam_intrinsic
 
-
-
 def get_predicted_data(sample_data_token: str,
                        box_vis_level: BoxVisibility = BoxVisibility.ANY,
                        selected_anntokens=None,
                        use_flat_vehicle_coordinates: bool = False,
-                       pred_anns=None
-                       ):
+                       pred_anns=None):
     """
-    Returns the data path as well as all annotations related to that sample_data.
-    Note that the boxes are transformed into the current sensor's coordinate frame.
-    :param sample_data_token: Sample_data token.
-    :param box_vis_level: If sample_data is an image, this sets required visibility for boxes.
-    :param selected_anntokens: If provided only return the selected annotation.
-    :param use_flat_vehicle_coordinates: Instead of the current sensor's coordinate frame, use ego frame which is
-                                         aligned to z-plane in the world.
-    :return: (data_path, boxes, camera_intrinsic <np.array: 3, 3>)
+    Returns the data path as well as all predicted annotations.
     """
-
-    # Retrieve sensor & pose records
     sd_record = nusc.get('sample_data', sample_data_token)
     cs_record = nusc.get('calibrated_sensor', sd_record['calibrated_sensor_token'])
     sensor_record = nusc.get('sensor', cs_record['sensor_token'])
@@ -239,40 +610,32 @@ def get_predicted_data(sample_data_token: str,
         cam_intrinsic = None
         imsize = None
 
-    # Retrieve all sample annotations and map to sensor coordinate system.
-    # if selected_anntokens is not None:
-    #    boxes = list(map(nusc.get_box, selected_anntokens))
-    # else:
-    #    boxes = nusc.get_boxes(sample_data_token)
     boxes = pred_anns
-    # Make list of Box objects including coord system transforms.
     box_list = []
     for box in boxes:
         if use_flat_vehicle_coordinates:
-            # Move box to ego vehicle coord system parallel to world z plane.
             yaw = Quaternion(pose_record['rotation']).yaw_pitch_roll[0]
             box.translate(-np.array(pose_record['translation']))
             box.rotate(Quaternion(scalar=np.cos(yaw / 2), vector=[0, 0, np.sin(yaw / 2)]).inverse)
         else:
-            # Move box to ego vehicle coord system.
             box.translate(-np.array(pose_record['translation']))
             box.rotate(Quaternion(pose_record['rotation']).inverse)
 
-            #  Move box to sensor coord system.
             box.translate(-np.array(cs_record['translation']))
             box.rotate(Quaternion(cs_record['rotation']).inverse)
 
-        if sensor_record['modality'] == 'camera' and not \
-                box_in_image(box, cam_intrinsic, imsize, vis_level=box_vis_level):
+        if sensor_record['modality'] == 'camera' and not box_in_image(box, cam_intrinsic, imsize, vis_level=box_vis_level):
             continue
         box_list.append(box)
 
     return data_path, box_list, cam_intrinsic
 
-
-
-
-def lidiar_render(sample_token, data,out_path=None):
+def lidar_render(sample_token, data, ax_bev_gt, ax_bev_pred, axes_limit=40, underlay_map=False, use_flat_vehicle_coordinates=True):
+    """
+    Modified to render BEV GT and Pred separately on given axes for integrated layout.
+    Green for GT, Blue for Pred as per official.
+    Use temporary files to save separate renders, then load into axes (workaround for 'ax' not supported).
+    """
     bbox_gt_list = []
     bbox_pred_list = []
     anns = nusc.get('sample', sample_token)['anns']
@@ -285,8 +648,7 @@ def lidiar_render(sample_token, data,out_path=None):
                 size=tuple(content['size']),
                 rotation=tuple(content['rotation']),
                 velocity=nusc.box_velocity(content['token'])[:2],
-                ego_translation=(0.0, 0.0, 0.0) if 'ego_translation' not in content
-                else tuple(content['ego_translation']),
+                ego_translation=(0.0, 0.0, 0.0) if 'ego_translation' not in content else tuple(content['ego_translation']),
                 num_pts=-1 if 'num_pts' not in content else int(content['num_pts']),
                 detection_name=category_to_detection_name(content['category_name']),
                 detection_score=-1.0 if 'detection_score' not in content else float(content['detection_score']),
@@ -294,7 +656,12 @@ def lidiar_render(sample_token, data,out_path=None):
         except:
             pass
 
-    bbox_anns = data['results'][sample_token]
+    # 修改：检查sample_token是否在results中
+    if sample_token in data['results']:
+        bbox_anns = data['results'][sample_token]
+    else:
+        bbox_anns = []  # 如果没有预测，使用空列表
+
     for content in bbox_anns:
         bbox_pred_list.append(DetectionBox(
             sample_token=content['sample_token'],
@@ -302,54 +669,35 @@ def lidiar_render(sample_token, data,out_path=None):
             size=tuple(content['size']),
             rotation=tuple(content['rotation']),
             velocity=tuple(content['velocity']),
-            ego_translation=(0.0, 0.0, 0.0) if 'ego_translation' not in content
-            else tuple(content['ego_translation']),
+            ego_translation=(0.0, 0.0, 0.0) if 'ego_translation' not in content else tuple(content['ego_translation']),
             num_pts=-1 if 'num_pts' not in content else int(content['num_pts']),
             detection_name=content['detection_name'],
-            detection_score=-1.0 if 'detection_score' not in content else float(content['detection_score']),
+            detection_score=content['detection_score'],
             attribute_name=content['attribute_name']))
+
     gt_annotations = EvalBoxes()
     pred_annotations = EvalBoxes()
     gt_annotations.add_boxes(sample_token, bbox_gt_list)
     pred_annotations.add_boxes(sample_token, bbox_pred_list)
-    print('green is ground truth')
-    print('blue is the predited result')
-    visualize_sample(nusc, sample_token, gt_annotations, pred_annotations, savepath=out_path+'_bev')
 
+    # Render GT BEV (only GT, empty pred)
+    visualize_sample(nusc, sample_token, gt_annotations, EvalBoxes(), savepath='temp_gt.png')
+    img_gt = Image.open('temp_gt.png')
+    ax_bev_gt.imshow(img_gt)
+    ax_bev_gt.axis('off')
+    ax_bev_gt.set_title('BEV GT (Green)')
+    os.remove('temp_gt.png')
 
-def get_color(category_name: str):
-    """
-    Provides the default colors based on the category names.
-    This method works for the general nuScenes categories, as well as the nuScenes detection categories.
-    """
-    a = ['noise', 'animal', 'human.pedestrian.adult', 'human.pedestrian.child', 'human.pedestrian.construction_worker',
-     'human.pedestrian.personal_mobility', 'human.pedestrian.police_officer', 'human.pedestrian.stroller',
-     'human.pedestrian.wheelchair', 'movable_object.barrier', 'movable_object.debris',
-     'movable_object.pushable_pullable', 'movable_object.trafficcone', 'static_object.bicycle_rack', 'vehicle.bicycle',
-     'vehicle.bus.bendy', 'vehicle.bus.rigid', 'vehicle.car', 'vehicle.construction', 'vehicle.emergency.ambulance',
-     'vehicle.emergency.police', 'vehicle.motorcycle', 'vehicle.trailer', 'vehicle.truck', 'flat.driveable_surface',
-     'flat.other', 'flat.sidewalk', 'flat.terrain', 'static.manmade', 'static.other', 'static.vegetation',
-     'vehicle.ego']
-    class_names = [
-        'car', 'truck', 'construction_vehicle', 'bus', 'trailer', 'barrier',
-        'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
-    ]
-    #print(category_name)
-    if category_name == 'bicycle':
-        return nusc.colormap['vehicle.bicycle']
-    elif category_name == 'construction_vehicle':
-        return nusc.colormap['vehicle.construction']
-    elif category_name == 'traffic_cone':
-        return nusc.colormap['movable_object.trafficcone']
-
-    for key in nusc.colormap.keys():
-        if category_name in key:
-            return nusc.colormap[key]
-    return [0, 0, 0]
-
+    # Render Pred BEV (only Pred, empty gt)
+    visualize_sample(nusc, sample_token, EvalBoxes(), pred_annotations, savepath='temp_pred.png')
+    img_pred = Image.open('temp_pred.png')
+    ax_bev_pred.imshow(img_pred)
+    ax_bev_pred.axis('off')
+    ax_bev_pred.set_title('BEV Pred (Blue)')
+    os.remove('temp_pred.png')
 
 def render_sample_data(
-        sample_toekn: str,
+        sample_token: str,
         with_anns: bool = True,
         box_vis_level: BoxVisibility = BoxVisibility.ANY,
         axes_limit: float = 40,
@@ -362,39 +710,17 @@ def render_sample_data(
         show_lidarseg_legend: bool = False,
         filter_lidarseg_labels=None,
         lidarseg_preds_bin_path: str = None,
-        verbose: bool = True,
+        verbose: bool = False,  # 默认不显示
         show_panoptic: bool = False,
         pred_data=None,
-      ) -> None:
+      ) -> str:  # 修改：返回图片路径
     """
-    Render sample data onto axis.
-    :param sample_data_token: Sample_data token.
-    :param with_anns: Whether to draw box annotations.
-    :param box_vis_level: If sample_data is an image, this sets required visibility for boxes.
-    :param axes_limit: Axes limit for lidar and radar (measured in meters).
-    :param ax: Axes onto which to render.
-    :param nsweeps: Number of sweeps for lidar and radar.
-    :param out_path: Optional path to save the rendered figure to disk.
-    :param underlay_map: When set to true, lidar data is plotted onto the map. This can be slow.
-    :param use_flat_vehicle_coordinates: Instead of the current sensor's coordinate frame, use ego frame which is
-        aligned to z-plane in the world. Note: Previously this method did not use flat vehicle coordinates, which
-        can lead to small errors when the vertical axis of the global frame and lidar are not aligned. The new
-        setting is more correct and rotates the plot by ~90 degrees.
-    :param show_lidarseg: When set to True, the lidar data is colored with the segmentation labels. When set
-        to False, the colors of the lidar data represent the distance from the center of the ego vehicle.
-    :param show_lidarseg_legend: Whether to display the legend for the lidarseg labels in the frame.
-    :param filter_lidarseg_labels: Only show lidar points which belong to the given list of classes. If None
-        or the list is empty, all classes will be displayed.
-    :param lidarseg_preds_bin_path: A path to the .bin file which contains the user's lidar segmentation
-                                    predictions for the sample.
-    :param verbose: Whether to display the image after it is rendered.
-    :param show_panoptic: When set to True, the lidar data is colored with the panoptic labels. When set
-        to False, the colors of the lidar data represent the distance from the center of the ego vehicle.
-        If show_lidarseg is True, show_panoptic will be set to False.
+    Modified to integrate BEV + multi-view in a single figure layout for official effect.
+    Layout: 3 rows x 4 columns
+    - Row 1: BEV GT | BEV Pred | (empty) | (empty)
+    - Row 2-3: 6 Camera views with Pred boxes (2 rows x 3 cols), spanned across columns 1-4
     """
-    lidiar_render(sample_toekn, pred_data, out_path=out_path)
-    sample = nusc.get('sample', sample_toekn)
-    # sample = data['results'][sample_token_list[0]][0]
+    sample = nusc.get('sample', sample_token)
     cams = [
         'CAM_FRONT_LEFT',
         'CAM_FRONT',
@@ -403,75 +729,157 @@ def render_sample_data(
         'CAM_BACK',
         'CAM_BACK_RIGHT',
     ]
+
     if ax is None:
-        _, ax = plt.subplots(4, 3, figsize=(24, 18))
-    j = 0
+        fig, ax = plt.subplots(3, 4, figsize=(32, 18))  # Adjusted for integrated layout
+
+    # Render BEV in first row, first two columns
+    lidar_render(sample_token, pred_data, ax[0, 0], ax[0, 1], axes_limit, underlay_map, use_flat_vehicle_coordinates)
+    ax[0, 2].axis('off')  # Hide empty
+    ax[0, 3].axis('off')  # Hide empty
+
+    # Render camera views in rows 1-2, columns 0-2
     for ind, cam in enumerate(cams):
         sample_data_token = sample['data'][cam]
-
         sd_record = nusc.get('sample_data', sample_data_token)
         sensor_modality = sd_record['sensor_modality']
 
-        if sensor_modality in ['lidar', 'radar']:
-            assert False
-        elif sensor_modality == 'camera':
-            # Load boxes and image.
+        if sensor_modality == 'camera':
+            # 修改：检查sample_token是否在results中
+            if sample_token in pred_data['results']:
+                records = pred_data['results'][sample_token]
+            else:
+                records = []  # 如果没有预测，使用空列表
+
             boxes = [Box(record['translation'], record['size'], Quaternion(record['rotation']),
                          name=record['detection_name'], token='predicted') for record in
-                     pred_data['results'][sample_toekn] if record['detection_score'] > 0.2]
+                     records if record['detection_score'] > 0.3]
 
             data_path, boxes_pred, camera_intrinsic = get_predicted_data(sample_data_token,
                                                                          box_vis_level=box_vis_level, pred_anns=boxes)
             _, boxes_gt, _ = nusc.get_sample_data(sample_data_token, box_vis_level=box_vis_level)
-            if ind == 3:
-                j += 1
-            ind = ind % 3
+
+            row = 1 + (ind // 3)
+            col = ind % 3
+
             data = Image.open(data_path)
-            # mmcv.imwrite(np.array(data)[:,:,::-1], f'{cam}.png')
-            # Init axes.
 
-            # Show image.
-            ax[j, ind].imshow(data)
-            ax[j + 2, ind].imshow(data)
+            # Show image on pred ax (we only show pred for official multi-view effect, GT separate if needed)
+            ax[row, col].imshow(data)
 
-            # Show boxes.
+            # Show pred boxes
             if with_anns:
                 for box in boxes_pred:
                     c = np.array(get_color(box.name)) / 255.0
-                    box.render(ax[j, ind], view=camera_intrinsic, normalize=True, colors=(c, c, c))
-                for box in boxes_gt:
-                    c = np.array(get_color(box.name)) / 255.0
-                    box.render(ax[j + 2, ind], view=camera_intrinsic, normalize=True, colors=(c, c, c))
+                    box.render(ax[row, col], view=camera_intrinsic, normalize=True, colors=(c, c, c))
 
-            # Limit visible range.
-            ax[j, ind].set_xlim(0, data.size[0])
-            ax[j, ind].set_ylim(data.size[1], 0)
-            ax[j + 2, ind].set_xlim(0, data.size[0])
-            ax[j + 2, ind].set_ylim(data.size[1], 0)
+            ax[row, col].set_xlim(0, data.size[0])
+            ax[row, col].set_ylim(data.size[1], 0)
+            ax[row, col].axis('off')
+            ax[row, col].set_title(f'{sd_record["channel"]} (Pred)')
+            ax[row, col].set_aspect('equal')
 
-        else:
-            raise ValueError("Error: Unknown sensor modality!")
+    # Hide unused axes in camera rows (column 3)
+    ax[1, 3].axis('off')
+    ax[2, 3].axis('off')
 
-        ax[j, ind].axis('off')
-        ax[j, ind].set_title('PRED: {} {labels_type}'.format(
-            sd_record['channel'], labels_type='(predictions)' if lidarseg_preds_bin_path else ''))
-        ax[j, ind].set_aspect('equal')
+    fig.suptitle(f'Sample {sample_token}: Official BEV + Multi-View', fontsize=16)
 
-        ax[j + 2, ind].axis('off')
-        ax[j + 2, ind].set_title('GT:{} {labels_type}'.format(
-            sd_record['channel'], labels_type='(predictions)' if lidarseg_preds_bin_path else ''))
-        ax[j + 2, ind].set_aspect('equal')
-
-    if out_path is not None:
-        plt.savefig(out_path+'_camera', bbox_inches='tight', pad_inches=0, dpi=200)
+    image_path = out_path + '_official_bev_multiview.png' if out_path else sample_token + '_official_bev_multiview.png'
+    plt.savefig(image_path, bbox_inches='tight', pad_inches=0, dpi=300)
+    print(f"已保存文件: {image_path}")
     if verbose:
         plt.show()
     plt.close()
 
+    return image_path  # 返回图片路径，用于视频合成
+
+def images_to_video(image_paths, output_video_path='output_video.mp4', fps=5):
+    """
+    将图片列表合成视频，使用OpenCV。
+    假设所有图片大小相同。
+    """
+    if not image_paths:
+        print("没有图片生成视频")
+        return
+
+    # 读取第一张图片获取大小
+    frame = cv2.imread(image_paths[0])
+    height, width, layers = frame.shape
+    size = (width, height)
+
+    # 创建视频编写器
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # 或 'XVID'
+    video = cv2.VideoWriter(output_video_path, fourcc, fps, size)
+
+    for image_path in tqdm(image_paths):
+        frame = cv2.imread(image_path)
+        video.write(frame)
+
+    video.release()
+    print(f"视频已保存: {output_video_path}")
+
+def get_scene_samples(nusc, scene_token):
+    """获取场景的所有样本tokens，按顺序"""
+    scene = nusc.get('scene', scene_token)
+    sample_token = scene['first_sample_token']
+    samples = []
+    while sample_token != '':
+        samples.append(sample_token)
+        sample = nusc.get('sample', sample_token)
+        sample_token = sample['next']
+    return samples
+
+def compute_metrics(nusc, results, output_dir, eval_set='mini_val', config_name='detection_cvpr_2019'):
+    """计算NDS和mAP指标"""
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+        json.dump(results, temp_file)
+        temp_file_path = temp_file.name
+
+    config = config_factory(config_name)
+    nusc_eval = NuScenesEval(nusc, config=config, result_path=temp_file_path, eval_set=eval_set, output_dir=output_dir, verbose=True)
+    metrics_summary = nusc_eval.main()
+
+    os.remove(temp_file_path)  # 清理临时文件
+
+    print("\n=== 评估指标 ===")
+    print(f"mAP: {metrics_summary['mean_ap']:.4f}")
+    print(f"NDS: {metrics_summary['nd_score']:.4f}")
+    print("=================\n")
+
+    return metrics_summary
+
 if __name__ == '__main__':
-    nusc = NuScenes(version='v1.0-trainval', dataroot='./data/nuscenes', verbose=True)
-    # render_annotation('7603b030b42a4b1caa8c443ccc1a7d52')
-    bevformer_results = mmcv.load('test/bevformer_base/Thu_Jun__9_16_22_37_2022/pts_bbox/results_nusc.json')
-    sample_token_list = list(bevformer_results['results'].keys())
-    for id in range(0, 10):
-        render_sample_data(sample_token_list[id], pred_data=bevformer_results, out_path=sample_token_list[id])
+    parser = argparse.ArgumentParser(description='BEVFormer可视化脚本')
+    parser.add_argument('--out_dir', type=str, default='./outputs/', help='输出目录，默认为./outputs/')
+    parser.add_argument('--verbose', action='store_true', help='是否显示图像窗口')
+    parser.add_argument('--fps', type=int, default=5, help='视频帧率，默认为5')
+    parser.add_argument('--version', type=str, default='v1.0-mini', help='nuScenes版本，默认为v1.0-mini')
+    args = parser.parse_args()
+
+    dataroot = './data/nuscenes'  # 修改为你的路径
+    nusc = NuScenes(version=args.version, dataroot=dataroot, verbose=True)
+    bevformer_results = mmcv.load('/Users/mac/PycharmProjects/bevformertest/BEVFormer/test/bevformer_tiny/Sat_Oct_18_10_44_00_2025/pts_bbox/results_nusc.json')  # 假设预测结果覆盖所有样本
+
+    # 遍历所有场景
+    for scene in tqdm(nusc.scene):
+        scene_token = scene['token']
+        scene_name = scene['name']
+        print(f"处理场景: {scene_name}")
+
+        # 获取场景样本
+        sample_token_list = get_scene_samples(nusc, scene_token)
+
+        image_paths = []  # 收集这个场景的图片路径
+        for sample_token in sample_token_list:
+            out_path = os.path.join(args.out_dir, scene_name, sample_token)
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            image_path = render_sample_data(sample_token, pred_data=bevformer_results, out_path=out_path, verbose=args.verbose)
+            image_paths.append(image_path)
+
+        # 为这个场景生成视频
+        output_video_path = os.path.join(args.out_dir, f'{scene_name}_bev_multiview_video.mp4')
+        images_to_video(image_paths, output_video_path, fps=args.fps)
+
+    # 可视化完成后计算指标
+    compute_metrics(nusc, bevformer_results, args.out_dir)

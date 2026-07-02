@@ -1,0 +1,17 @@
+一.如果是cpu设备
+mmdetection3d install需要把/BEVFormer/mmdetection3d/setup.py进行修改224-309行，
+ext_modules=[],   # 跳过所有 C++/CUDA 扩展的编译
+修改完成后才能成功安装0.17.1的mmdetection3d
+
+二.results_nusc.json 如果是cpu设备需要在云服务器上运行test.sh脚本生成results_nusc.json文件，之后再下载到本地电脑上
+可视化视频生成脚本开启，根据实际路径调整
+/Users/mac/PycharmProjects/bevformertest/BEVFormer/test/bevformer_tiny/Sat_Oct_18_10_44_00_2025/pts_bbox/results_nusc.json
+
+python tools/analysis_tools/visual_optimizer_opencv.py \
+    --dataroot /Users/mac/PycharmProjects/bevformertest/BEVFormer/data/nuscenes \
+    --version v1.0-mini \
+    --result_json /Users/mac/PycharmProjects/bevformertest/BEVFormer/test/bevformer_tiny/Sat_Oct_18_10_44_00_2025/pts_bbox/results_nusc.json \
+    --out_dir ./outputs \
+    --fps 5 \
+    --num_workers 8 \
+    --eval
