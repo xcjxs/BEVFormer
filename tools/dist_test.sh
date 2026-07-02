@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-CONFIG=$1
+CONIFG=$1
 CHECKPOINT=$2
 GPUS=$3
 PORT=${PORT:-29503}
