@@ -2,7 +2,7 @@
   
 # BEVFormer: a Cutting-edge Baseline for Camera-based Detection
 </div>
-scene-0916_bev_multiview_video.mp4
+[![点击观看演示视频](预览图.png)](scene-0916_bev_multiview_video.mp4)
 
 
 > **BEVFormer: Learning Bird's-Eye-View Representation from Multi-Camera Images via Spatiotemporal Transformers**, ECCV 2022
