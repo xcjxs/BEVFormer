@@ -6,3 +6,9 @@ test/
 __pycache__/
 *.pyc
 .DS_Store
+xcj2002321
+xcj2002321.pub
+ckpts/
+data/
+outputs/
+*.pth
