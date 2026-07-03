@@ -2,8 +2,7 @@
   
 # BEVFormer: a Cutting-edge Baseline for Camera-based Detection
 </div>
-### 演示视频
-点击观看：[scene-0916_bev_multiview_video.mp4](scene-0916_bev_multiview_video.mp4)
+scene-0916_bev_multiview_video.mp4
 
 https://user-images.githubusercontent.com/27915819/161392594-fc0082f7-5c37-4919-830a-2dd423c1d025.mp4
 
